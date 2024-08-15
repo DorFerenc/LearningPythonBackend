@@ -1,0 +1,31 @@
+# version: is a version of docker-compose file format
+version: '3.1'
+ 
+# database: just a service name, can change the name to whatever
+services:
+    mongodb:
+        # image: specifying mongo here to create a container from the mongo image
+        # went with mongo 4.4 because it doers not need a CPU with AVX support
+        image: 'mongo:4.4'
+        # container_name: is the name of your container, this is optional
+        container_name: 'my-mongo-container'
+        restart: always
+        # environment: is a variable that will be used on the mongo container
+        environment:
+            # MONGO_INITDB_ROOT_USERNAME: fill with the username of the root that you want
+            MONGO_INITDB_ROOT_USERNAME: admin
+            # MONGO_INITDB_ROOT_PASSWORD: fill with the password of the root that you want
+            MONGO_INITDB_ROOT_PASSWORD: password
+            # MONGO_INITDB_DATABASE: fill with a database name that you want to create, make it the same like init-mongo.js
+            MONGO_INITDB_DATABASE: firstdb
+        # volumes: define a file/folder that you want to use for the container
+        volumes:
+            # Copy /init-mongo.js to /docker-entrypoint-init.d as a read-only file.
+            # /docker-entrypoint-initdb.d is a folder that has already been created inside the mongo container used for initiating the database, so we copy our script to that folder
+            - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+            # Set data on the container to persist on local folder named 'mongo-volume'
+            # /data/db is a folder that has already been created inside the mongo container
+            - ./mongo-volume:/data/db
+        # ports define which ports you want to expose and define.
+        ports:
+            - '27017-27019:27017-27019'
