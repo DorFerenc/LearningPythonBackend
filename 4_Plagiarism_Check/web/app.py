@@ -12,11 +12,12 @@ db = client.SimilarityDB
 users = db["Users"]
 
 initialTokens = 6
+correctAdminPw = "abc123"
 
 
 class AppUtils():
     def userExists(self, username):
-        if users.find({"Username":username}).count() == 0:
+        if users.find({"Username":username}).count_documents() == 0:
             return False
         return True
     
@@ -60,6 +61,7 @@ class Detect(Resource):
 
         if not AppUtils.userExists(username):
             return jsonify({"status":301, "msg":"Invalid Username"})
+        
         if not AppUtils.verifyPassword(username, password):
             return jsonify({"status":302, "msg":"Invalid passowrd"})
 
@@ -76,3 +78,28 @@ class Detect(Resource):
 
         return jsonify({"status":200, "similarity":ratioOfSimilarity, "msg": f"Similarity score calculated successfully you have {numTokens-1} left"})
 
+class Refill(Resource):
+    def post(self):
+        postedData = request.get_json
+
+        username = postedData["username"]
+        adminPW = postedData["adminPW"]
+        refillAmount = postedData["refillAmount"]
+
+        if not AppUtils.userExists(username):
+            return jsonify({"status":301, "msg":"Invalid Username"})
+        
+        if adminPW != correctAdminPw:
+            return jsonify({"status":304, "msg":"Invalid Admin Password"})
+        
+        currentTokens = AppUtils.countTokens(username)
+        users.update_one({"Username":username},{"$set":{"Tokens":currentTokens + refillAmount}})
+
+        return jsonify({"status":200, "msg": f"Refilled successfully you have {numTokens-1} left"})
+    
+api.add_resource(Register, '/register')
+api.add_resource(Detect, '/detect')
+api.add_resource(Refill, '/refill')
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0')
