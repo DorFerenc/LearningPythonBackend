@@ -1,0 +1,4 @@
+Resource, Address, Protocol, Parameters, Responses + status code
+Register User, /register, POST, Username|Password|{String}, 200 OK
+Store Sentence, /store, POST, Username|Password|Sentence|{String}, 200 OK| 301 Out of tokens| 302 Invalid Username+passowrd combination 
+Retrieve Sentence, /get, POST, Username|Password|{String}, 200 OK| 301 Out of tokens| 302 Invalid Username+passowrd combination 
