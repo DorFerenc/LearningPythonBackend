@@ -1,0 +1,4 @@
+Resource, Address, Protocol, Parameters, Responses + status code
+Register New User, /register, POST, username|password|{String}, 200 OK| 301 Invalid Username
+Detect similarity of docs, /detect, POST, username|password|text1|text2|{String}, 200 OK return similarity| 301 Invalid Username| 302 Invalid passowrd| 303 Out of tokens
+Refill tokens, /refill, POST, username|admin_password|refill_amount|{String}, 200 OK| 301 Invalid Username| 304 Invalid admin passowrd 
