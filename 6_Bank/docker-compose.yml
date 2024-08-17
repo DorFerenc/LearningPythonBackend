@@ -5,7 +5,7 @@ services:
     build: './web'
     ports:
       - "5000:5000"
-    depends_on:
+    links:
       - db
   db:
     build: './db'

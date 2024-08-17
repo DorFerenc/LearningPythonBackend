@@ -7,10 +7,10 @@ app = Flask(__name__)
 api = Api(app)
 
 client = MongoClient("mongodb://db:27017")
-db = client.SimilarityDB
+db = client.BankAPI
 users = db["Users"]
 
-initialTokens = 6
+transactionFee = 1
 correctAdminPw = "abc123"
 
 
@@ -20,16 +20,28 @@ class AppUtils():
             return False
         return True
     
-    def verifyPassword(username, password):
+    def verifyCredentials(username, password):
         if not AppUtils.userExists(username):
-            return False
+            return AppUtils.generateReturnJson(301,"Invalid Username"), True
         hashedPW = users.find({"Username":username})[0]["Password"]
         if not bcrypt.hashpw(password.encode('utf8'), hashedPW) == hashedPW:
-            return False
-        return True
+            return AppUtils.generateReturnJson(302,"Invalid Password"), True
+        return None, False
     
-    def countTokens(username):
-        return (users.find({"Username":username})[0]["Tokens"])
+    def getUserCash(username):
+        return (users.find({"Username":username})[0]["Own"])
+    
+    def getUserDept(username):
+        return (users.find({"Username":username})[0]["Dept"])
+    
+    def generateReturnJson(status, msg):
+        return jsonify({"status":status,"msg":msg})
+    
+    def updateAcountBalance(username, balance):
+        users.update({"Username":username}, {"$set":{"Own":balance}})
+    
+    def updateAcountDept(username, balance):
+        users.update({"Username":username}, {"$set":{"Dept":balance}})
 
 
 class Register(Resource):
@@ -40,38 +52,38 @@ class Register(Resource):
         password = postedData["password"]
 
         if AppUtils.userExists(username):
-            return jsonify({"status":301, "msg":"Invalid Username"})
+            return AppUtils.generateReturnJson(301,"Invalid Username")
 
         hashed_pw = bcrypt.hashpw(password.encode('utf8'), bcrypt.gensalt())
 
-        users.insert_one({"Username": username, "Password":hashed_pw, "Tokens": initialTokens})
+        users.insert_one({"Username": username, "Password":hashed_pw, "Own": 0, "Debt": 0})
 
-        return jsonify({"status":200, "msg":"You've successfully signed up to the API"})
+        return AppUtils.generateReturnJson(200,"You've successfully signed up to the API")
 
 
-class Detect(Resource):
+class Add(Resource):
     def post(self):
         postedData = request.get_json()
 
         username = postedData["username"]
         password = postedData["password"]
-        text1 = postedData["text1"]
-        text2 = postedData["text2"]
+        amount = postedData["amount"]
 
-        if not AppUtils.userExists(username):
-            return jsonify({"status":301, "msg":"Invalid Username"})
+        retJson, error = AppUtils.verifyCredentials(username, password)
+        if error: 
+            return retJson
         
-        if not AppUtils.verifyPassword(username, password):
-            return jsonify({"status":302, "msg":"Invalid passowrd"})
+        if amount <= 0:
+            return AppUtils.generateReturnJson(304, "The money amount entered must be >0")
 
-        numTokens = AppUtils.countTokens(username)
-        if numTokens <= 0:
-            return jsonify({"status":303, "msg":"Out of tokens"})
+        currentUserCash = AppUtils.getUserCash(username)
+        bankCash = AppUtils.getUserCash("BANK") # check how mush cash the bank has
+        currentUserCash -= transactionFee # Take a tranaction fee from the user
+        AppUtils.updateAcountBalance("BANK", bankCash + transactionFee)
+        AppUtils.updateAcountBalance(username, currentUserCash + amount)
 
-        users.update_one({"Username":username},{"$set":{"Tokens":numTokens-1}})
-
-        return jsonify({"status":200, "similarity":6, "msg": f"Similarity score calculated successfully you have {numTokens-1} left"})
-
+        return AppUtils.generateReturnJson(200, "Amount added succesfully")
+        
 class Refill(Resource):
     def post(self):
         postedData = request.get_json()
@@ -92,7 +104,7 @@ class Refill(Resource):
         return jsonify({"status":200, "msg": f"Refilled successfully you have {currentTokens + refillAmount} left"})
     
 api.add_resource(Register, '/register')
-api.add_resource(Detect, '/detect')
+api.add_resource(Add, '/add')
 api.add_resource(Refill, '/refill')
 
 if __name__ == "__main__":
