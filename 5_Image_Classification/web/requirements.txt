@@ -1,9 +1,9 @@
 Flask
 flask_restful
 pymongo
-bcrypt # secure passwords
-numpy # numerical operations with tensorflow and keras
-tensorflow # for machine learning
+bcrypt
+numpy
+tensorflow
 requests 
-keras # high level interface for tensorflow
-pillow # user friendly for working with images
+keras
+pillow

@@ -1,5 +1,10 @@
 # Image Classification API
 
+### Using: 
+1. TensorFlow (for machine learning)
+2. Keras (high level interface for tensorflow)
+3. Keras InceptionsV3 
+4. Pillow (to handle image data)
 
 ### API Chart Protocols
 | Resource | Address   | Protocol | Parameters                    | Responses + status code                                                                                                    |
