@@ -38,10 +38,10 @@ class AppUtils():
         return jsonify({"status":status,"msg":msg})
     
     def updateAcountBalance(username, balance):
-        users.update({"Username":username}, {"$set":{"Own":balance}})
+        users.update_one({"Username":username}, {"$set":{"Own":balance}})
     
     def updateAcountDept(username, balance):
-        users.update({"Username":username}, {"$set":{"Dept":balance}})
+        users.update_one({"Username":username}, {"$set":{"Dept":balance}})
 
 
 class Register(Resource):
@@ -84,28 +84,106 @@ class Add(Resource):
 
         return AppUtils.generateReturnJson(200, "Amount added succesfully")
         
-class Refill(Resource):
+class Transfer(Resource):
     def post(self):
         postedData = request.get_json()
 
         username = postedData["username"]
-        adminPW = postedData["adminPW"]
-        refillAmount = postedData["refillAmount"]
+        password = postedData["password"]
+        to = postedData["to"]
+        amount = postedData["amount"]
 
-        if not AppUtils.userExists(username):
-            return jsonify({"status":301, "msg":"Invalid Username"})
+        retJson, error = AppUtils.verifyCredentials(username, password)
+        if error: 
+            return retJson
         
-        if adminPW != correctAdminPw:
-            return jsonify({"status":304, "msg":"Invalid Admin Password"})
+        currentUserCash = AppUtils.getUserCash(username)
+        if currentUserCash <= 0:
+            return AppUtils.generateReturnJson(304, "You are out of money please get amount")
         
-        currentTokens = AppUtils.countTokens(username)
-        users.update_one({"Username":username},{"$set":{"Tokens":currentTokens + refillAmount}})
+        if not AppUtils.userExists(to):
+            return AppUtils.generateReturnJson(301, "Reciever Username is invalid")
 
-        return jsonify({"status":200, "msg": f"Refilled successfully you have {currentTokens + refillAmount} left"})
+        reciverUserCash = AppUtils.getUserCash(to)
+        bankCash = AppUtils.getUserCash("BANK")
+
+        AppUtils.updateAcountBalance(username, reciverUserCash - amount - transactionFee)
+        AppUtils.updateAcountBalance(to, reciverUserCash + amount)
+        AppUtils.updateAcountBalance("BANK", bankCash + transactionFee)
+
+        return AppUtils.generateReturnJson(200, "Amount transfered succesfully")
+
+
+class Balance(Resource):
+    def post(self):
+        postedData = request.get_json()
+
+        username = postedData["username"]
+        password = postedData["password"]
+
+        retJson, error = AppUtils.verifyCredentials(username, password)
+        if error: 
+            return retJson
+
+        return jsonify(users.find({"Username":username},{"Password":0, "_id":0})[0])
+
+
+class TakeLoan(Resource):
+    def post(self):
+        postedData = request.get_json()
+
+        username = postedData["username"]
+        password = postedData["password"]
+        amount = postedData["amount"]
+
+        retJson, error = AppUtils.verifyCredentials(username, password)
+        if error: 
+            return retJson
+        
+        if amount <= 0:
+            return AppUtils.generateReturnJson(304, "The money amount entered must be >0")
+        
+        currentUserCash = AppUtils.getUserCash(username)
+        currentUserDebt = AppUtils.getUserDept(username)
+        AppUtils.updateAcountDept(username, currentUserDebt + amount)
+        AppUtils.updateAcountBalance(username, currentUserCash + amount)
+
+        return AppUtils.generateReturnJson(200, "Loan added to your account")
+
+
+class PayLoan(Resource):
+    def post(self):
+        postedData = request.get_json()
+
+        username = postedData["username"]
+        password = postedData["password"]
+        amount = postedData["amount"]
+
+        retJson, error = AppUtils.verifyCredentials(username, password)
+        if error: 
+            return retJson
+        
+        if amount <= 0:
+            return AppUtils.generateReturnJson(304, "The money amount entered must be >0")
+        
+        currentUserCash = AppUtils.getUserCash(username)
+
+        if currentUserCash < amount:
+            return AppUtils.generateReturnJson(303, "Not enough cash in your account to pay this amount")
+        
+        currentUserDebt = AppUtils.getUserDept(username)
+        AppUtils.updateAcountBalance(username, currentUserCash - amount)
+        AppUtils.updateAcountDept(username, currentUserDebt - amount)
+
+        return AppUtils.generateReturnJson(200, "You've succesfully paid the amount off your loan")
     
+
 api.add_resource(Register, '/register')
 api.add_resource(Add, '/add')
-api.add_resource(Refill, '/refill')
+api.add_resource(Transfer, '/transfer')
+api.add_resource(Balance, '/balance')
+api.add_resource(TakeLoan, '/takeloan')
+api.add_resource(PayLoan, '/payloan')
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
